@@ -15,11 +15,10 @@ Next.js (App Router) · TypeScript · Tailwind · Postgres (`pg`) · OpenAI API.
 ```bash
 npm install
 cp .env.example .env   # ממלאים DATABASE_URL, OPENAI_API_KEY, APP_PASSWORD
-npm run seed           # נתוני דוגמה (רק אם המסד ריק; --reset מאפס)
 npm run dev
 ```
 
-הטבלאות נוצרות אוטומטית בבקשה הראשונה.
+הטבלאות נוצרות אוטומטית בבקשה הראשונה. נתוני דוגמה: אחרי כניסה, `POST /api/seed` (מוסיף רק אם המסד ריק; `{"reset":true}` מאפס).
 
 ## משתני סביבה
 
