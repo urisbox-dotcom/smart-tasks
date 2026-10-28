@@ -149,6 +149,20 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
+const RESPONSE_TOOLS: OpenAI.Responses.Tool[] = TOOLS.flatMap((t) =>
+  t.type === "function"
+    ? [
+        {
+          type: "function" as const,
+          name: t.function.name,
+          description: t.function.description ?? "",
+          parameters: (t.function.parameters ?? {}) as Record<string, unknown>,
+          strict: false,
+        },
+      ]
+    : [],
+);
+
 // ---------- עזרים ----------
 
 function resolveSpace(ctx: Ctx, ref: unknown): Space | null {
@@ -464,37 +478,34 @@ export async function runAgent(messages: ChatMessage[], spaces: Space[], single:
     mutated: false,
   };
   const ai = client();
-  const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt(ctx) },
-    ...messages.map((m) => ({ role: m.role, content: m.content }) as OpenAI.Chat.Completions.ChatCompletionMessageParam),
-  ];
+  // Responses API: gpt-6-luna לא תומך בכלים יחד עם reasoning ב-Chat Completions
+  const input: OpenAI.Responses.ResponseInput = messages.map((m) => ({ role: m.role, content: m.content }));
+  const instructions = systemPrompt(ctx);
 
   let reply = "";
   for (let step = 0; step < MAX_STEPS; step++) {
-    const res = await ai.chat.completions.create({
+    const res = await ai.responses.create({
       model: modelName(),
-      messages: convo,
-      tools: TOOLS,
-      tool_choice: "auto",
+      instructions,
+      input,
+      tools: RESPONSE_TOOLS,
     });
-    const msg = res.choices[0]?.message;
-    if (!msg) break;
-    convo.push(msg);
-    const calls = (msg.tool_calls ?? []).filter((c) => c.type === "function");
+    input.push(...(res.output as OpenAI.Responses.ResponseInput));
+    const calls = res.output.filter((o) => o.type === "function_call");
     if (!calls.length) {
-      reply = (msg.content ?? "").trim();
+      reply = (res.output_text ?? "").trim();
       break;
     }
     for (const call of calls) {
       let result: unknown;
       try {
-        const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-        result = await runTool(ctx, call.function.name, args);
+        const args = call.arguments ? JSON.parse(call.arguments) : {};
+        result = await runTool(ctx, call.name, args);
       } catch (e) {
-        console.error("tool error", call.function.name, e);
+        console.error("tool error", call.name, e);
         result = { error: "הפעולה נכשלה" };
       }
-      convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
+      input.push({ type: "function_call_output", call_id: call.call_id, output: JSON.stringify(result) });
     }
   }
 
