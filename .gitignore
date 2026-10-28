@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+.vercel
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+npm-debug.log*
+# קבצי המוח האישי - לא עולים לריפו הציבורי
+CLAUDE.md
+status.md
+lessons.md
