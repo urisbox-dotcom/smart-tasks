@@ -13,3 +13,6 @@ npm-debug.log*
 CLAUDE.md
 status.md
 lessons.md
+
+.vercel
+.env*
